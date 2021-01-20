@@ -31,43 +31,41 @@ SSD1306 display(OLED_RST);
  #error("Height incorrect, please fix ssd1306.h!");
 #endif
 
-// This EUI must be in little-endian format, so least-significant-byte
-// first. When copying an EUI from ttnctl output, this means to reverse
-// the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
-// 0x70.
+// Deze EUI moet de indeling little-endian hebben, dus de minst significante byte
+// Dus, bij het kopiëren van een EUI van ttn, betekent dit het omgekeerde van big-endian
+// t Voor TTN uitgegeven EUI's moeten de laatste bytes 0xD5, 0xB3, 0x70 zijn.
 static const u1_t PROGMEM APPEUI[8] = { "YOUR APPEUI HERE" };
 void os_getArtEui (u1_t* buf) { memcpy_P(buf, APPEUI, 8);}
 
-// This should also be in little endian format, see above.
+// Dit moet ook in het format little endian zijn, zie hierboven.
 static const u1_t PROGMEM DEVEUI[8] = { "YOUR DEVEUI HERE" };
 void os_getDevEui (u1_t* buf) { memcpy_P(buf, DEVEUI, 8);}
 
-// This key should be in big endian format (or, since it is not really a
-// number but a block of memory, endianness does not really apply). In
-// practice, a key taken from the TTN console can be copied as-is.
+// Deze sleutel moet de indeling Big Endian hebben (of, aangezien het niet echt een nummer 
+// is maar een geheugenblok, is endianness niet echt van toepassing). In de praktijk kan 
+// een sleutel die uit de TTN-console wordt gehaald, ongewijzigd worden gekopieerd.
 static const u1_t PROGMEM APPKEY[16] = { "YOUR APPKEY HERE" };
 void os_getDevKey (u1_t* buf) {  memcpy_P(buf, APPKEY, 16);}
 
-// payload to send to TTN gateway
+// payload om naar TTN-gateway te verzenden
 static uint8_t payload[5];
 static osjob_t sendjob;
 
-// Schedule TX every this many seconds (might become longer due to duty
-// cycle limitations).
+// TX om de zoveel seconden (kan langer worden vanwege beperkingen in de werkcyclus).
 const unsigned TX_INTERVAL = 10;
 
 // dht
 float temperature;
 float rHumidity;
 
-// Pin mapping for Heltec WiFi LoRa Board
+// Pin mapping voor Heltec WiFi LoRa Board
 const lmic_pinmap lmic_pins = {
     .nss = 18,
     .rxtx = LMIC_UNUSED_PIN,
     .rst = 14,
     .dio = {26, 33, 32},
     .rxtx_rx_active = 0,
-    .rssi_cal = 8,              // This may not be correct for Heltec board
+    .rssi_cal = 8,
     .spi_freq = 8000000,
 };
 
@@ -127,19 +125,10 @@ void onEvent (ev_t ev) {
               }
               Serial.println("");
             }
-            // Disable link check validation (automatically enabled
-            // during join, but because slow data rates change max TX
-      // size, we don't use it in this example.
+    
             LMIC_setLinkCheckMode(0);
             break;
-        /*
-        || This event is defined but not used in the code. No
-        || point in wasting codespace on it.
-        ||
-        || case EV_RFU1:
-        ||     Serial.println(F("EV_RFU1"));
-        ||     break;
-        */
+
         case EV_JOIN_FAILED:
             Serial.println(F("EV_JOIN_FAILED"));
             break;
@@ -164,7 +153,7 @@ void onEvent (ev_t ev) {
               Serial.println(LMIC.dataLen);
               Serial.println(F(" bytes of payload"));
             }
-            // Schedule next transmission
+            // Planning de volgende verzending
             os_setTimedCallback(&sendjob, os_getTime()+sec2osticks(TX_INTERVAL), do_send);
             break;
         case EV_LOST_TSYNC:
@@ -174,7 +163,7 @@ void onEvent (ev_t ev) {
             Serial.println(F("EV_RESET"));
             break;
         case EV_RXCOMPLETE:
-            // data received in ping slot
+            // gegevens ontvangen in ping-slot
             Serial.println(F("EV_RXCOMPLETE"));
             break;
         case EV_LINK_DEAD:
@@ -183,14 +172,7 @@ void onEvent (ev_t ev) {
         case EV_LINK_ALIVE:
             Serial.println(F("EV_LINK_ALIVE"));
             break;
-        /*
-        || This event is defined but not used in the code. No
-        || point in wasting codespace on it.
-        ||
-        || case EV_SCAN_FOUND:
-        ||    Serial.println(F("EV_SCAN_FOUND"));
-        ||    break;
-        */
+
         case EV_TXSTART:
             display.clearDisplay();
             display.display();
@@ -212,50 +194,49 @@ void onEvent (ev_t ev) {
 }
 
 void do_send(osjob_t* j){
-    // Check if there is not a current TX/RX job running
+    // Controleer of er momenteel geen TX / RX-taak wordt uitgevoerd
     if (LMIC.opmode & OP_TXRXPEND) {
         Serial.println(F("OP_TXRXPEND, not sending"));
     } else {
-        // read the temperature from the DHT22
+        // meting temperatuur starten
         temperature = dht.readTemperature();
         Serial.print("Temperature: "); Serial.print(temperature);
         Serial.println(" *C");
-        // adjust for the f2sflt16 range (-1 to 1)
+        // bijwerken
         temperature = temperature / 100; 
 
-        // read the humidity from the DHT22
+        // meting luchtvochtigheid starten
         rHumidity = dht.readHumidity();
         Serial.print("%RH ");
         Serial.println(rHumidity);
-        // adjust for the f2sflt16 range (-1 to 1)
+        // bijwerken
         rHumidity = rHumidity / 100;
         
-        // float -> int
-        // note: this uses the sflt16 datum (https://github.com/mcci-catena/arduino-lmic#sflt16)
+        // van float -> int
         uint16_t payloadTemp = LMIC_f2sflt16(temperature);
-        // int -> bytes
+        // van int -> bytes
         byte tempLow = lowByte(payloadTemp);
         byte tempHigh = highByte(payloadTemp);
-        // place the bytes into the payload
+        // bytes in de payload
         payload[0] = tempLow;
         payload[1] = tempHigh;
 
-        // float -> int
+        // van float -> int
         uint16_t payloadHumid = LMIC_f2sflt16(rHumidity);
-        // int -> bytes
+        // van int -> bytes
         byte humidLow = lowByte(payloadHumid);
         byte humidHigh = highByte(payloadHumid);
         payload[2] = humidLow;
         payload[3] = humidHigh;
 
-        // prepare upstream data transmission at the next possible time.
-        // transmit on port 1 (the first parameter); you can use any value from 1 to 223 (others are reserved).
-        // don't request an ack (the last parameter, if not zero, requests an ack from the network).
-        // Remember, acks consume a lot of network resources; don't ask for an ack unless you really need it.
+        // bereid upstream datatransmissie voor op het eerst mogelijke tijdstip. 
+        // verzenden op poort 1 (de eerste parameter); u kunt elke waarde tussen 1 en 223 gebruiken 
+        // (andere zijn gereserveerd). vraag geen ack aan. Onthoud dat acks veel netwerkbronnen verbruiken; 
+        // vraag niet om een ack, tenzij je het echt nodig hebt.
         LMIC_setTxData2(1, payload, sizeof(payload)-1, 0);
         Serial.println(F("EV_TXSTART"));
     }
-    // Next TX is scheduled after TX_COMPLETE event.
+    // De volgende TX is gepland na de TX_COMPLETE-gebeurtenis.
 }
 
 void setup() {
@@ -265,44 +246,29 @@ void setup() {
     Serial.println(F("Starting"));
 
     dht.begin();
-    // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
     Wire.begin(OLED_SDA,OLED_SCL,100000);
-    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x64)
+    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
     Serial.println("OLED and DHT init'd");
 
-    // Show image buffer on the display hardware.
-    // Since the buffer is intialized with an Adafruit splashscreen
-    // internally, this will display the splashscreen.
     display.display();
     delay(1000);
    
-    // Clear the buffer.
     display.clearDisplay();
     display.display();
 
-    // set text display size/location
     display.setTextSize(1);
     display.setTextColor(WHITE);
     display.setCursor(0,0);
 
-    // LMIC init
     os_init();
-    // Reset the MAC state. Session and pending data transfers will be discarded.
+    // Reset de MAC-status. Sessie- en lopende gegevensoverdrachten worden geweigerd.
     LMIC_reset();
-    // Disable link-check mode and ADR, because ADR tends to complicate testing.
+    // Schakel de linkcontrolemodus en ADR uit, omdat ADR het testen vaak ingewikkelder maakt.
     LMIC_setLinkCheckMode(0);
-    // Set the data rate to Spreading Factor 7.  This is the fastest supported rate for 125 kHz channels, and it
-    // minimizes air time and battery power. Set the transmission power to 14 dBi (25 mW).
     LMIC_setDrTxpow(DR_SF7,14);
     #if defined(CFG_eu868)
-    // Set up the channels used by the Things Network, which corresponds
-    // to the defaults of most gateways. Without this, only three base
-    // channels from the LoRaWAN specification are used, which certainly
-    // works, so it is good for debugging, but can overload those
-    // frequencies, so be sure to configure the full frequency range of
-    // your network here (unless your network autoconfigures them).
-    // Setting up channels should happen after LMIC_setSession, as that
-    // configures the minimal channel set.
+    
+    // kanaal instellingen  
     LMIC_setupChannel(0, 868100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
     LMIC_setupChannel(1, 868300000, DR_RANGE_MAP(DR_SF12, DR_SF7B), BAND_CENTI);      // g-band
     LMIC_setupChannel(2, 868500000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
@@ -312,27 +278,19 @@ void setup() {
     LMIC_setupChannel(6, 867700000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
     LMIC_setupChannel(7, 867900000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
     LMIC_setupChannel(8, 868800000, DR_RANGE_MAP(DR_FSK,  DR_FSK),  BAND_MILLI);      // g2-band
-    // TTN defines an additional channel at 869.525Mhz using SF9 for class B
-    // devices' ping slots. LMIC does not have an easy way to define set this
-    // frequency and support for class B is spotty and untested, so this
-    // frequency is not configured here.
     #elif defined(CFG_us915)
-    // NA-US channels 0-71 are configured automatically
-    // but only one group of 8 should (a subband) should be active
-    // TTN recommends the second sub band, 1 in a zero based count.
-    // https://github.com/TheThingsNetwork/gateway-conf/blob/master/US-global_conf.json
     LMIC_selectSubBand(1);
     #endif
 
-    // Start job (sending automatically starts OTAA too)
+    // Start job (automatisch verzenden, start OTAA ook)
     do_send(&sendjob);
 }
 
 void loop() {
-  // we call the LMIC's runloop processor. This will cause things to happen based on events and time. One
-  // of the things that will happen is callbacks for transmission complete or received messages. We also
-  // use this loop to queue periodic data transmissions.  You can put other things here in the `loop()` routine,
-  // but beware that LoRaWAN timing is pretty tight, so if you do more than a few milliseconds of work, you
-  // will want to call `os_runloop_once()` every so often, to keep the radio running.
+  // we noemen de runloop-processor van de LMIC. Hierdoor gebeuren er dingen op basis van gebeurtenissen en tijd. Een 
+  // van de dingen die zullen gebeuren, zijn callbacks voor verzending van complete of ontvangen berichten. We 
+  // gebruiken deze lus ook om periodieke datatransmissies in de wachtrij te plaatsen. Je kunt hier andere dingen in de `loop ()` routine zetten, 
+  // maar pas op dat de LoRaWAN-timing behoorlijk krap is, dus als je meer dan een paar milliseconden aan werk doet, wil je 
+  // `os_runloop_once ()` aanroepen om de zoveel tijd, om de radio draaiende te houden.
   os_runloop_once();
 }
