@@ -1,29 +1,8 @@
-/*******************************************************************************
- * The Things Network - Sensor Data Example with OLED
- * 
- * Example of sending a valid LoRaWAN packet with DHT22 temperature and
- * humidity data to The Things Networ using a Feather M0 LoRa.
- * 
- * Learn Guide: https://learn.adafruit.com/the-things-network-for-feather
- * 
- * Copyright (c) 2015 Thomas Telkamp and Matthijs Kooijman
- * Copyright (c) 2018 Terry Moore, MCCI
- * Copyright (c) 2018 Brent Rubell, Adafruit Industries
- * 
- * Permission is hereby granted, free of charge, to anyone
- * obtaining a copy of this document and accompanying files,
- * to do whatever they want with them without any restriction,
- * including, but not limited to, copying, modification and redistribution.
- * NO WARRANTY OF ANY KIND IS PROVIDED.
- *
- *Modified by Darren Sherin to run on the ESP32 Heltec WiFi LoRa V1 20/11/18
- *
- *******************************************************************************/
 #include <lmic.h>
 #include <hal/hal.h>
 #include <SPI.h>
 
-// include the DHT22 Sensor Library
+// De DHT22 Library
 #include "DHT.h"
 
 
@@ -31,11 +10,11 @@
 #include <Adafruit_GFX.h>
 #include <ssd1306.h>
 
-// DHT digital pin and sensor type
+// DHT digital pin en sensor type
 #define DHTPIN 23
 #define DHTTYPE DHT22
 
-// OLED pin map for Heltec Board
+//OLED pin map voor Heltec Board
 #ifndef OLED_RST
   #define OLED_RST 16
 #endif
